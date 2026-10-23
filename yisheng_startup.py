@@ -113,12 +113,12 @@ def _run_command(command: list[str], log: Path, timeout: int) -> None:
         raise SetupError(f"环境安装失败（退出代码 {result.returncode}）。详情见：{log}")
 
 
-def _prepare_environment(root: Path) -> Path:
+def _prepare_environment(root: Path) -> Path | None:
     requirements = root / "requirements.txt"
     entries = _requirements(requirements)
     # In case the current Python already meets requirements, do not install anything.
     if _dependencies_ok(requirements):
-        return Path()
+        return None
     env_root = _environment_dir(root)
     python = env_root / "Scripts" / "python.exe"
     pythonw = env_root / "Scripts" / "pythonw.exe"
