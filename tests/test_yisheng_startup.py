@@ -100,6 +100,22 @@ class StartupTests(unittest.TestCase):
             run.side_effect = OSError("interpreter removed")
             self.assertFalse(mod._environment_ok(python, Path(d) / "requirements.txt", Path(d)))
 
+    def test_existing_project_venv_is_reused(self):
+        """A working local .venv must bypass pip even when the launcher lacks deps."""
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d)
+            python=root/".venv/Scripts/python.exe"
+            pythonw=root/".venv/Scripts/pythonw.exe"
+            python.parent.mkdir(parents=True)
+            python.write_bytes(b"python")
+            pythonw.write_bytes(b"pythonw")
+            (root/"requirements.txt").write_text("numpy>=1.26,<3\n")
+            with (mock.patch.object(mod,"_dependencies_ok",return_value=False),
+                  mock.patch.object(mod,"_environment_ok",return_value=True) as probe,
+                  mock.patch.object(mod,"_run_command",side_effect=AssertionError("must not install"))):
+                self.assertEqual(mod._prepare_environment(root),pythonw)
+                probe.assert_called_once_with(python,root/"requirements.txt",root)
+
     def test_failed_command_preserves_exit(self):
         with tempfile.TemporaryDirectory() as d,mock.patch.object(mod.subprocess,"run") as run:
             run.return_value.returncode=12
