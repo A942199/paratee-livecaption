@@ -113,9 +113,27 @@ def _run_command(command: list[str], log: Path, timeout: int) -> None:
         raise SetupError(f"环境安装失败（退出代码 {result.returncode}）。详情见：{log}")
 
 
+def _environment_ok(python: Path, requirements: Path, root: Path) -> bool:
+    """Check that a cached environment still satisfies the project's requirements."""
+    if not python.is_file():
+        return False
+    probe = ("import sys; from pathlib import Path; "
+             "sys.path.insert(0, sys.argv[1]); "
+             "from yisheng_startup import _dependencies_ok; "
+             "sys.exit(0 if _dependencies_ok(Path(sys.argv[2])) else 1)")
+    try:
+        result = subprocess.run([str(python), "-B", "-c", probe, str(root), str(requirements)],
+                                stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                stderr=subprocess.DEVNULL, check=False, timeout=15,
+                                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        return result.returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+
+
 def _prepare_environment(root: Path) -> Path | None:
     requirements = root / "requirements.txt"
-    entries = _requirements(requirements)
+    _requirements(requirements)
     # In case the current Python already meets requirements, do not install anything.
     if _dependencies_ok(requirements):
         return None
@@ -125,7 +143,6 @@ def _prepare_environment(root: Path) -> Path | None:
     log = env_root.parent / "bootstrap.log"
     stamp = env_root / ".yisheng-requirements"
     fingerprint = hashlib.sha256(requirements.read_bytes()).hexdigest()
-    base = str(Path(sys.base_prefix).resolve()).casefold()
     config = env_root / "pyvenv.cfg"
     original_home = ""
     if config.is_file():
@@ -141,10 +158,13 @@ def _prepare_environment(root: Path) -> Path | None:
         _run_command([str(_python_console()), "-m", "venv", str(env_root)], log, 120)
     if not python.is_file():
         raise SetupError("无法创建 Python 虚拟环境：" + str(env_root))
-    if not stamp.is_file() or stamp.read_text(encoding="ascii", errors="ignore") != fingerprint:
+    if (not stamp.is_file() or stamp.read_text(encoding="ascii", errors="ignore") != fingerprint
+            or not _environment_ok(python, requirements, root)):
         _notify("首次启动需要在个人目录配置 Python 依赖。点击确定后自动安装，详细进度记录在 bootstrap.log。")
         _run_command([str(python), "-m", "pip", "install", "--disable-pip-version-check",
                       "-r", str(requirements)], log, 1800)
+        if not _environment_ok(python, requirements, root):
+            raise SetupError("依赖安装结束，但验证仍未通过。详情见：" + str(log))
         stamp.write_text(fingerprint, encoding="ascii")
     return pythonw if pythonw.is_file() else python
 
