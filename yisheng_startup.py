@@ -132,7 +132,8 @@ def _prepare_environment(root: Path) -> Path:
         for line in config.read_text(encoding="utf-8", errors="replace").splitlines():
             if line.lower().startswith("home ="):
                 original_home = line.partition("=")[2].strip().casefold()
-    healthy_home = not config.exists() or original_home == str(_python_console().parent).casefold()
+    base_executable = Path(getattr(sys, "_base_executable", sys.executable)).resolve()
+    healthy_home = not config.exists() or original_home == str(base_executable.parent).casefold()
     # Refuse to modify an environment that appears to belong to another machine.
     if not healthy_home and env_root.exists():
         raise SetupError("检测到迁移后失效的 Python 环境，请删除该目录后重新启动：" + str(env_root))
