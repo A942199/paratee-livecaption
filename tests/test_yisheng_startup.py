@@ -110,9 +110,9 @@ class StartupTests(unittest.TestCase):
             python.write_bytes(b"python")
             pythonw.write_bytes(b"pythonw")
             (root/"requirements.txt").write_text("numpy>=1.26,<3\n")
-            with mock.patch.object(mod,"_dependencies_ok",return_value=False), \\
-                 mock.patch.object(mod,"_environment_ok",return_value=True) as probe, \\
-                 mock.patch.object(mod,"_run_command",side_effect=AssertionError("must not install")):
+            with (mock.patch.object(mod,"_dependencies_ok",return_value=False),
+                  mock.patch.object(mod,"_environment_ok",return_value=True) as probe,
+                  mock.patch.object(mod,"_run_command",side_effect=AssertionError("must not install"))):
                 self.assertEqual(mod._prepare_environment(root),pythonw)
                 probe.assert_called_once_with(python,root/"requirements.txt",root)
 
