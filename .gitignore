@@ -1,0 +1,22 @@
+# Private local data and generated environments
+config.json
+config.json.lock
+*.log
+history/
+work/
+runtime/
+models/
+engine/
+jpsub/assets/
+.venv/
+.yisheng-env/
+__pycache__/
+*.pyc
+.pytest_cache/
+build/
+dist/
+*.egg-info/
+
+# Windows user files
+Thumbs.db
+desktop.ini
