@@ -89,6 +89,17 @@ class StartupTests(unittest.TestCase):
             with self.assertRaises(mod.SetupError):mod.prepare(root,main,[])
             proc.assert_not_called()
 
+    def test_cached_environment_probe(self):
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(mod.subprocess, "run") as run:
+            python = Path(d) / "python.exe"
+            python.write_bytes(b"fake")
+            run.return_value.returncode = 0
+            self.assertTrue(mod._environment_ok(python, Path(d) / "requirements.txt", Path(d)))
+            run.return_value.returncode = 1
+            self.assertFalse(mod._environment_ok(python, Path(d) / "requirements.txt", Path(d)))
+            run.side_effect = OSError("interpreter removed")
+            self.assertFalse(mod._environment_ok(python, Path(d) / "requirements.txt", Path(d)))
+
     def test_failed_command_preserves_exit(self):
         with tempfile.TemporaryDirectory() as d,mock.patch.object(mod.subprocess,"run") as run:
             run.return_value.returncode=12
