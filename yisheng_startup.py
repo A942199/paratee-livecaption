@@ -134,7 +134,15 @@ def _environment_ok(python: Path, requirements: Path, root: Path) -> bool:
 def _prepare_environment(root: Path) -> Path | None:
     requirements = root / "requirements.txt"
     _requirements(requirements)
-    # In case the current Python already meets requirements, do not install anything.
+    # Reuse an existing working project environment before creating a second one.
+    # A Windows .pyw file can start under a different registered Python executable.
+    local_python = root / ".venv" / "Scripts" / "python.exe"
+    if _environment_ok(local_python, requirements, root):
+        if local_python.parent.resolve() == Path(sys.executable).resolve().parent:
+            return None
+        local_pythonw = local_python.with_name("pythonw.exe")
+        return local_pythonw if local_pythonw.is_file() else local_python
+    # Otherwise keep a working current interpreter unchanged.
     if _dependencies_ok(requirements):
         return None
     env_root = _environment_dir(root)
